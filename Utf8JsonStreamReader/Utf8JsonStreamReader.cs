@@ -98,42 +98,11 @@ namespace Utf8JsonStreamReader
         }
 
 
-        public T Deserialise<T>(JsonSerializerOptions? options = null)
+        private void DeserialisePost()
         {
-            // JsonSerializer.Deserialize can read only a single object. We have to extract
-            // object to be deserialized into separate Utf8JsonReader. This incurs one additional
-            // pass through data (but data is only passed, not parsed).
-            var tokenStartIndex = _jsonReader.TokenStartIndex;
-            var firstSegment = _firstSegment;
-            var firstSegmentStartIndex = _firstSegmentStartIndex;
-
-            // loop through data until end of object is found
-            _keepBuffers = true;
-            int depth = 0;
-
-            if (TokenType == JsonTokenType.StartObject || TokenType == JsonTokenType.StartArray)
-                depth++;
-
-            while (depth > 0 && Read())
-            {
-                if (TokenType == JsonTokenType.StartObject || TokenType == JsonTokenType.StartArray)
-                    depth++;
-                else if (TokenType == JsonTokenType.EndObject || TokenType == JsonTokenType.EndArray)
-                    depth--;
-            }
-
-            _keepBuffers = false;
-
-            var newJsonReader =
-                new Utf8JsonReader(new ReadOnlySequence<byte>(firstSegment!, firstSegmentStartIndex, _lastSegment!,
-                    _lastSegmentEndIndex).Slice(tokenStartIndex, _jsonReader.Position), true, default);
-
-            // deserialize value
-            var result = JsonSerializer.Deserialize<T>(ref newJsonReader, options);            
-            
             // release memory if possible
-            firstSegment = _firstSegment;
-            firstSegmentStartIndex = _firstSegmentStartIndex + (int) _jsonReader.BytesConsumed;
+            var firstSegment = _firstSegment;
+            var firstSegmentStartIndex = _firstSegmentStartIndex + (int) _jsonReader.BytesConsumed;
 
             while (firstSegment?.Memory.Length < firstSegmentStartIndex)
             {
@@ -151,6 +120,63 @@ namespace Utf8JsonStreamReader
                 _jsonReader =
                     new Utf8JsonReader(data, _isFinalBlock, _jsonReader.CurrentState);
             }
+        }
+        
+        private long DeserialisePre(out SequenceSegment? firstSegment, out int firstSegmentStartIndex)
+        {
+            // JsonSerializer.Deserialize can read only a single object. We have to extract
+            // object to be deserialized into separate Utf8JsonReader. This incurs one additional
+            // pass through data (but data is only passed, not parsed).
+            var tokenStartIndex = _jsonReader.TokenStartIndex;
+            firstSegment = _firstSegment;
+            firstSegmentStartIndex = _firstSegmentStartIndex;
+
+            // loop through data until end of object is found
+            _keepBuffers = true;
+            int depth = 0;
+
+            if (TokenType == JsonTokenType.StartObject || TokenType == JsonTokenType.StartArray)
+                depth++;
+
+            while (depth > 0 && Read())
+            {
+                if (TokenType == JsonTokenType.StartObject || TokenType == JsonTokenType.StartArray)
+                    depth++;
+                else if (TokenType == JsonTokenType.EndObject || TokenType == JsonTokenType.EndArray)
+                    depth--;
+            }
+
+            _keepBuffers = false;
+            return tokenStartIndex;
+        }
+
+        public T Deserialise<T>(JsonSerializerOptions? options = null)
+        {
+            var tokenStartIndex = DeserialisePre(out var firstSegment, out var firstSegmentStartIndex);
+
+            var newJsonReader =
+                new Utf8JsonReader(new ReadOnlySequence<byte>(firstSegment!, firstSegmentStartIndex, _lastSegment!,
+                    _lastSegmentEndIndex).Slice(tokenStartIndex, _jsonReader.Position), true, default);
+
+            // deserialize value
+            var result = JsonSerializer.Deserialize<T>(ref newJsonReader, options);
+
+            DeserialisePost();
+            return result;
+        }
+
+        public JsonDocument GetJsonDocument()
+        {
+            var tokenStartIndex = DeserialisePre(out var firstSegment, out var firstSegmentStartIndex);
+
+            var newJsonReader =
+                new Utf8JsonReader(new ReadOnlySequence<byte>(firstSegment!, firstSegmentStartIndex, _lastSegment!,
+                    _lastSegmentEndIndex).Slice(tokenStartIndex, _jsonReader.Position), true, default);
+
+
+            // deserialize value
+            var result = JsonDocument.ParseValue(ref newJsonReader);
+            DeserialisePost();        
             return result;
         }
 
