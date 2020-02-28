@@ -131,6 +131,10 @@ namespace Utf8JsonStreamReader
             firstSegment = _firstSegment;
             firstSegmentStartIndex = _firstSegmentStartIndex;
 
+            if (firstSegment is null && this.Read()) {
+                return DeserialisePre(out firstSegment, out firstSegmentStartIndex);
+            }
+
             // loop through data until end of object is found
             _keepBuffers = true;
             int depth = 0;
