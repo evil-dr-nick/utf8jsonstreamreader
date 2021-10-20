@@ -206,7 +206,7 @@ namespace Utf8JsonStreamReader
         public string GetString() => _jsonReader.GetString();
         public uint GetUInt32() => _jsonReader.GetUInt32();
         public ulong GetUInt64() => _jsonReader.GetUInt64();
-        public bool TryGetDecimal(out byte value) => _jsonReader.TryGetByte(out value);
+        public bool TryGetByte(out byte value) => _jsonReader.TryGetByte(out value);
         public bool TryGetBytesFromBase64(out byte[] value) => _jsonReader.TryGetBytesFromBase64(out value);
         public bool TryGetDateTime(out DateTime value) => _jsonReader.TryGetDateTime(out value);
         public bool TryGetDateTimeOffset(out DateTimeOffset value) => _jsonReader.TryGetDateTimeOffset(out value);
