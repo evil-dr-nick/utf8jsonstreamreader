@@ -6,7 +6,7 @@ using System.Text.Json;
 namespace Utf8JsonStreamReader
 {
 
-    
+
     // Taken from https://stackoverflow.com/questions/54983533/parsing-a-json-file-with-net-core-3-0-system-text-json
     // and fixed a few bugs with that
     public ref struct Utf8JsonStreamReader
@@ -75,7 +75,7 @@ namespace Utf8JsonStreamReader
             var newSegment = new SequenceSegment(_bufferSize, _lastSegment);
             _lastSegment?.SetNext(newSegment);
             _lastSegment = newSegment;
-            
+
             if (_firstSegment == null)
             {
                 _firstSegment = newSegment;
@@ -116,12 +116,12 @@ namespace Utf8JsonStreamReader
                 _firstSegment = firstSegment;
                 _firstSegmentStartIndex = firstSegmentStartIndex;
                 var data = new ReadOnlySequence<byte>(_firstSegment!, _firstSegmentStartIndex, _lastSegment!,
-                    _lastSegmentEndIndex); 
+                    _lastSegmentEndIndex);
                 _jsonReader =
                     new Utf8JsonReader(data, _isFinalBlock, _jsonReader.CurrentState);
             }
         }
-        
+
         private long DeserialisePre(out SequenceSegment? firstSegment, out int firstSegmentStartIndex)
         {
             // JsonSerializer.Deserialize can read only a single object. We have to extract
@@ -154,9 +154,10 @@ namespace Utf8JsonStreamReader
         {
             var tokenStartIndex = DeserialisePre(out var firstSegment, out var firstSegmentStartIndex);
 
-            var newJsonReader =
-                new Utf8JsonReader(new ReadOnlySequence<byte>(firstSegment!, firstSegmentStartIndex, _lastSegment!,
-                    _lastSegmentEndIndex).Slice(tokenStartIndex, _jsonReader.Position), true, default);
+
+            var seq = new ReadOnlySequence<byte>(firstSegment!, firstSegmentStartIndex, _lastSegment!,
+                _lastSegmentEndIndex).Slice(tokenStartIndex, _jsonReader.Position);
+            var newJsonReader = new Utf8JsonReader(seq, true, default);
 
             // deserialize value
             var result = JsonSerializer.Deserialize<T>(ref newJsonReader, options);
@@ -176,7 +177,7 @@ namespace Utf8JsonStreamReader
 
             // deserialize value
             var result = JsonDocument.ParseValue(ref newJsonReader);
-            DeserialisePost();        
+            DeserialisePost();
             return result;
         }
 
@@ -191,7 +192,7 @@ namespace Utf8JsonStreamReader
 
         public bool GetBoolean() => _jsonReader.GetBoolean();
         public byte GetByte() => _jsonReader.GetByte();
-        public byte[] GetBytesFromBase64() => _jsonReader.GetBytesFromBase64();
+        public byte[]? GetBytesFromBase64() => _jsonReader.GetBytesFromBase64();
         public string GetComment() => _jsonReader.GetComment();
         public DateTime GetDateTime() => _jsonReader.GetDateTime();
         public DateTimeOffset GetDateTimeOffset() => _jsonReader.GetDateTimeOffset();
@@ -203,7 +204,7 @@ namespace Utf8JsonStreamReader
         public long GetInt64() => _jsonReader.GetInt64();
         public sbyte GetSByte() => _jsonReader.GetSByte();
         public float GetSingle() => _jsonReader.GetSingle();
-        public string GetString() => _jsonReader.GetString();
+        public string? GetString() => _jsonReader.GetString();
         public uint GetUInt32() => _jsonReader.GetUInt32();
         public ulong GetUInt64() => _jsonReader.GetUInt64();
         public bool TryGetByte(out byte value) => _jsonReader.TryGetByte(out value);
