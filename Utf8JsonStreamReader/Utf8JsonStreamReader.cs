@@ -242,11 +242,14 @@ namespace Utf8JsonStreamReader
 
             public void Dispose()
             {
-                if (!_disposed)
+                // Dispose of this and all previous segments iteratively, not recursively.
+                for (var segment = this; segment != null; segment = segment.Previous)
                 {
-                    _disposed = true;
-                    Buffer.Dispose();
-                    Previous?.Dispose();
+                    if (segment._disposed)
+                        continue;
+
+                    segment._disposed = true;
+                    segment.Buffer.Dispose();
                 }
             }
         }
